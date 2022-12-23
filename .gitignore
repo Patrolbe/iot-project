@@ -1,0 +1,5 @@
+venv
+*/__pychache__/
+__pycache__/
+1.bat
+config.ini
