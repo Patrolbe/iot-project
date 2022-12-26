@@ -20,10 +20,13 @@ async def main():
         agenci.append(agent)
     
     while True:
+      zadania = []
       for agent in agenci:
-        nazwa =(await agent.urzadzenie.read_browse_name()).Name
-        print(nazwa)
-        await agent.telemetria()
+        zadania_agenta = agent.zbiorZadan()
+        for zadanie_agenta in zadania_agenta:
+          zadania.append(zadanie_agenta)
+        
+      await asyncio.gather(*zadania)
       await asyncio.sleep(5)
 
 if __name__ == "__main__":
