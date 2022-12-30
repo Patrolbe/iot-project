@@ -11,14 +11,12 @@ async def main():
 
   async with Client(url=url) as klient:
     urzadzenia = await klient.get_objects_node().get_children()
-
     for urzadzenie in urzadzenia:
       nazwa = (await urzadzenie.read_browse_name()).Name
       if (nazwa!= 'Server'):
         connectionString = ustawienia.pobierz('connectionString',nazwa)
         agent = Agent(urzadzenie, connectionString)
         agenci.append(agent)
-    
     while True:
       zadania = []
       for agent in agenci:

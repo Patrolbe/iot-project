@@ -1,9 +1,9 @@
-from azure.iot.device import IoTHubDeviceClient, Message
+from azure.iot.device import IoTHubDeviceClient, Message, MethodResponse
 from asyncua.common.node import Node
 from asyncua import ua
 import json
 import asyncio
-
+from datetime import datetime
 class Agent:
   def __init__(self, urzadzenie, connectionString):
     self.urzadzenie = urzadzenie
@@ -12,11 +12,12 @@ class Agent:
 
     self.klientIot = IoTHubDeviceClient.create_from_connection_string(self.connectionString)
     self.klientIot.connect()
+    self.klientIot.on_twin_desired_properties_patch_received = self.aktualizacjaDesiredPropertiesUrzadzenia
+    self.klientIot.on_method_request_received = self.otrzymaneMetody
 
     self.klientIot.patch_twin_reported_properties({'DeviceError': None})
     self.klientIot.patch_twin_reported_properties({'ProductionRate': None})
 
-    self.klientIot.on_twin_desired_properties_patch_received = self.aktualizacjaDesiredPropertiesUrzadzenia
 
   async def telemetria(self):
     dane = {
@@ -36,9 +37,36 @@ class Agent:
     wiadomosc = Message(json.dumps(dane), "UTF-8", "JSON")
     self.klientIot.send_message(wiadomosc)
     
-  def aktualizacjaDesiredPropertiesUrzadzenia(self, dane):
-    if "ProductionRate" in dane:
-      self.zadania.append(self.device.write("ProductionRate", ua.Variant(dane["ProductionRate"], ua.VariantType.Int32)))
+  def aktualizacjaDesiredPropertiesUrzadzenia(self, data):
+    try:
+      if "ProductionRate" in data:
+        self.zadania.append(self.ustawieniaUrzadzenia('ProductionRate', ua.Variant(data['ProductionRate'], ua.VariantType.Int32)))
+    except Exception as e:
+      print(e)
+
+  async def ustawieniaUrzadzenia(self, nazwaWartosci, wartosc):
+    await (await self.urzadzenie.get_child(nazwaWartosci)).write_value(wartosc)
+
+
+  def otrzymaneMetody(self, metoda):
+
+    if metoda.name == "MaintenanceDone":
+      self.klientIot.patch_twin_reported_properties({"LastMaintenanceDate":  datetime.now().isoformat()})
+    
+    elif metoda.name == "ResetErrorStatus":
+      print("resetowanie errorów")
+      self.zadania.append(self.metodyUrzadzenia("ResetErrorStatus"))
+      
+    elif metoda.name == "emergency_stop":
+      print("awaryjny stop")
+      self.zadania.append(self.metodyUrzadzenia("ResetErrorStatus"))
+
+    self.klientIot.send_method_response(MethodResponse(metoda.request_id, 0))
+  
+  
+  async def metodyUrzadzenia(self, metoda: str):
+      return await self.urzadzenie.call_method(metoda)
+
 
 
   def zbiorZadan(self):
@@ -48,3 +76,5 @@ class Agent:
     zadania.append(asyncio.create_task(self.telemetria()))
     self.zadania = []
     return zadania
+
+  
