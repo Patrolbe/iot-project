@@ -57,9 +57,9 @@ class Agent:
       print("resetowanie errorów")
       self.zadania.append(self.metodyUrzadzenia("ResetErrorStatus"))
       
-    elif metoda.name == "emergency_stop":
+    elif metoda.name == "EmergencyStop":
       print("awaryjny stop")
-      self.zadania.append(self.metodyUrzadzenia("ResetErrorStatus"))
+      self.zadania.append(self.metodyUrzadzenia("EmergencyStop"))
 
     self.klientIot.send_method_response(MethodResponse(metoda.request_id, 0))
   
